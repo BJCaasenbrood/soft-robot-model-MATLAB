@@ -439,45 +439,45 @@ function [pp, id, J] = computeForwardKinematics(Model,x)
 ee   = x(1:3:numel(x));
 ltot = sum(Model.l0(:).*(ee(:) + 1));
 
-ds  = ltot/Model.Sstep;
+ds  = ltot/(Model.Sstep*5);
 s   = 0.0;
-p   = Model.p0;
-Phi = Model.Phi0;
+p_   = Model.p0;
+Phi_ = Model.Phi0;
 J   = zeros(6,numel(x));
 
 ss = [];
 pp = [];
 
-for ii = 1:Model.Sstep
+for ii = 1:(Model.Sstep*5)
     
    [K1p,K1Phi,K1J] = ForwardKinematicODE(Model,s,...
-                        x, Phi, p);
+                        x, Phi_, p_);
     
    [K2p,K2Phi,K2J] = ForwardKinematicODE(Model, s + (2/3)*ds,...
-                        x, Phi + (2/3)*ds*K1Phi, p + (2/3)*ds*K1p);
+                        x, Phi_ + (2/3)*ds*K1Phi, p_ + (2/3)*ds*K1p);
     
-   s   = s + ds; 
-   p   = p + 0.25*ds*(K1p + 3*K2p);
-   Phi = Phi + 0.25*ds*(K1Phi + 3*K2Phi);
-   J   = J + 0.25*ds*(K1J + 3*K2J);
+   s    = s + ds; 
+   p_   = p_ + 0.25*ds*(K1p + 3*K2p);
+   Phi_ = Phi_ + 0.25*ds*(K1Phi + 3*K2Phi);
+   J    = J + 0.25*ds*(K1J + 3*K2J);
    
    ss = [ss; s];
-   pp = [pp; p(:).'];
+   pp = [pp; p_(:).'];
    
 end
 
 % transform Jacobian to body frame
-Ai = adjointSE3inv(Phi,p);
+Ai = adjointSE3inv(Phi_,p_);
 J  = Ai*J;
 
 l  = cumsum(Model.l0(:).*(ee(:) + 1));
 id = zeros(numel(l),1);
 
-for ii = 1:numel(l)
-   [~,id(ii)] = min(abs(l(ii) - ss(:)));
-end
-
-id = [1;id(:)];
+% for ii = 1:numel(l)
+%    [~,id(ii)] = min(abs(l(ii) - ss(:)));
+% end
+id = round(linspace(1,(Model.Sstep*5),Model.Nlink+1));
+%id = [1;id(:)];
 
 end
 %-------------------------------------------------- forwards kinematics ODE

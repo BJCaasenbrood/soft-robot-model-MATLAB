@@ -30,15 +30,26 @@ subplot(3,1,3); plot(mdl.t,ky,'linewidth',2);
 figure(102);
 Q = mdl.q;
 
-for ii = 1:fps(mdl.t,50):length(mdl.t)
+for ii = 1:fps(mdl.t,30):length(mdl.t)
     
     figure(102); cla;
     
-    mdl.show(Q(ii,:));
+    mdl.show(Q(ii,:),col(1));
     axis equal;
-    axis(0.25*[-1 1.5 -1 1 -1.2 1.25]);
+    axis(0.25*[-0.4 1.25 -1 1 -1 1]);
     view(0,0);
-    drawnow();
+
+    
+    title('\color{blue} Soft robot manipulator (N=8)',...
+        'interpreter','tex','fontsize',18);
+    
+    drawnow(); grid on; box on; 
+    background('w');
+    set(gca,'linewidth',2.5);
+    
+    if ii == 1, gif('mdl_8_link.gif','frame',gcf,'nodither');
+    else, gif;
+    end
     
 end
 

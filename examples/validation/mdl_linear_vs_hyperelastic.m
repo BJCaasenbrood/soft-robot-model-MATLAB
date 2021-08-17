@@ -4,8 +4,8 @@ close all; clear; clc;
 mdl = Model(8);
 
 %% settings
-mdl = mdl.setElements(25);
-mdl = mdl.setFrequency(125);
+mdl = mdl.setElements(64);
+mdl = mdl.setFrequency(60);
 mdl = mdl.setLength(0.04);
 
 %% simulate with hyper-elastic material
@@ -26,18 +26,26 @@ Q2      = mdl.q;
 f = figure(102);
 f.Name = 'Hyper-elastic (blue) vs linear-elastic (red)';
 
-for ii = 1:fps(mdl.t,120):length(mdl.t)
+for ii = 1:fps(mdl.t,30):length(mdl.t)
     
     figure(102); cla;
     
-    mdl.show(Q1(ii,:),'b');
-    mdl.show(Q2(ii,:),'r');
+    groundplane(0.05);
+    mdl.show(Q1(ii,:),col(1));
+    mdl.show(Q2(ii,:),col(2));
     axis equal;
     
-    axis(0.3*[-1 1 -1 1 -1 1]);
-    view(0,0);
-    drawnow;
+    axis(0.4*[-1 1 -1 1 -0.75 1.1]);
+    view(0,0); drawnow;
+    box on; grid on;
+    set(gca,'linewidth',2.5);
+    title('\color{blue} Hyper-elastic \color{black} vs. \color{red} Hookean',...
+        'interpreter','tex','fontsize',18);
+    background('w')
     
+    if ii == 1, gif('hypervslinear.gif','frame',gcf,'nodither');
+    else, gif;
+    end
 end
 
 function tau = Controller(mdl)

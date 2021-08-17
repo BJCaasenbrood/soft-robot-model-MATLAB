@@ -77,13 +77,16 @@ legend('$\frac{k_e(q)}{\hat{k}_e(q,\Pi)}$ \vspace{15mm}',...
 
 %% play animation soft robot
 f = figure(103);
-Q = mdl.q;
+
+Q  = mdl.q;
+Qd = [mean(l0)*(1+0.01*sin(mdl.t) + 0.01),30*sin(mdl.t),30*cos(mdl.t)];
 
 for ii = 1:fps(mdl.t,75):length(mdl.t)
     figure(103); cla;
-    mdl.show(Q(ii,:),greycolors(4));
-    groundplane(0.02);
-    axis equal; axis([-0.05 0.05 -0.05 0.05 0 0.07]);
+    mdl.show(Q(ii,:),col(1));
+    mdl.show(Qd(ii,:),col(2));
+    groundplane(0.015);
+    axis equal; axis([-0.07 0.07 -0.07 0.07 0 0.07]);
     f.Name = [' Time =',num2str(mdl.t(ii),3)];
     drawnow();
     grid on;
@@ -96,9 +99,9 @@ Kp = diag([5, 0.001, 0.001]);
 Kd = diag([1, 0.001, 0.001]);
 
 Lambda = eye(3);
-qd     = [0.01*sin(t) + 0.01; 40*sin(t); 40*cos(t)];
-dqd    = [0.01*cos(t); 40*cos(t); -40*sin(t)];
-ddqd   = [-0.01*sin(t); -40*sin(t); -40*cos(t)];
+qd     = [0.01*sin(t) + 0.01; 30*sin(t); 30*cos(t)];
+dqd    = [0.01*cos(t); 30*cos(t); -30*sin(t)];
+ddqd   = [-0.01*sin(t); -30*sin(t); -30*cos(t)];
 
 e    = mdl.q - qd;
 de   = mdl.dq - dqd;
@@ -117,8 +120,8 @@ Ge = 1e4;
 Gb = 3e-5;
 
 Gamma  = alpha*diag([Ge,Ge,0,Gb,Gb,0,0]);
-qd     = [0.01*sin(t) + 0.01; 40*sin(t); 40*cos(t)];
-dqd    = [0.01*cos(t); 40*cos(t); -40*sin(t)];
+qd     = [0.01*sin(t) + 0.01; 30*sin(t); 30*cos(t)];
+dqd    = [0.01*cos(t); 30*cos(t); -30*sin(t)];
 
 e  = mdl.q - qd;
 de = mdl.dq - dqd;
