@@ -1,1 +1,1 @@
-# soft-robot-model-MATLAB
+# Soft robot models for (real-time) control
