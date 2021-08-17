@@ -4,7 +4,7 @@ close all; clear; clc;
 mdl = Model(4);
 
 %% settings
-mdl = mdl.set('Phi0',rotx(pi),'Tsim',15);
+mdl = mdl.set('Phi0',rotx(pi));
 mdl = mdl.setElements(60);
 mdl = mdl.setFrequency(60);
 mdl = mdl.setLength(0.065);
@@ -64,7 +64,7 @@ qd3 = [0;0;30];
 qd4 = [0;-40;0];
 qd = [qd1;qd2;qd3;qd4];
 KK = 1e-4*eye(12);
-KKd = 5e-5*eye(12);
+KKd = 3e-5*eye(12);
 tau = mdl.G + mdl.K*(mdl.q) - KK*(mdl.q - qd) - KKd*(mdl.dq);
 end
     

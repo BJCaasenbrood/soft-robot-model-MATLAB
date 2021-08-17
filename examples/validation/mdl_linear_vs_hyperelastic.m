@@ -50,7 +50,7 @@ end
 
 function tau = Controller(mdl)
 A = 0.02;
-w = 1;
+w = pi;
 v = [0;sin(w*mdl.t);0];
 tau = A*[v;zeros((mdl.Nlink-1)*3,1)];
 end
