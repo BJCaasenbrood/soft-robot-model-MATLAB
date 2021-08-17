@@ -8,6 +8,7 @@ classdef Model
         lam, lam0;
         p, Phi, p0, Phi0;
         M, C, G, K, R, Vg, J;
+        m0, l0, r0;
         Pi, Pihat, Y;
         hamil;
         Shp;
@@ -16,7 +17,6 @@ classdef Model
     end
     
     properties (Access = private)
-        m0, l0, r0;
         N; S;
         Ktrue;
         ke, kb, kp, de, db;
@@ -27,6 +27,7 @@ classdef Model
         Conv;
         Creep;
         Adaptive;
+        Linewidth, Markersize;
     end
     
 %--------------------------------------------------------------------------
@@ -67,6 +68,9 @@ function obj = Model(N,varargin)
     obj.ODE      = '.';
     obj.Creep    = false;
     obj.Adaptive = false;
+    
+    obj.Linewidth  = 2;
+    obj.Markersize = 18;
     
     for ii = 1:2:length(varargin)
         obj.(varargin{ii}) = varargin{ii+1};
@@ -120,9 +124,17 @@ function Model = setFrequency(Model,f), Model.Tstep = 1/f;
 Model.t = stepspace(0,Model.Tsim,Model.Tstep).';
 end
 %-------------------------------------------------------- set mass of links
-function Model = setMass(Model,a), Model.m0 = ones(Model.Nlink,1)*a; end
+function Model = setMass(Model,a) 
+    if numel(a) == 1, Model.m0 = ones(Model.Nlink,1)*a; 
+    else, Model.m0 = a(:);
+    end
+end
 %------------------------------------------------------ set length of links
-function Model = setLength(Model,a), Model.l0 = ones(Model.Nlink,1)*a; end
+function Model = setLength(Model,a)
+    if numel(a) == 1, Model.l0 = ones(Model.Nlink,1)*a; 
+    else, Model.l0 = a(:);
+    end
+end
 %------------------------------------------------------ set shape-functions
 function Model = setShapeFunction(Model,fnc), Model.Shp = fnc; end
 %------------------------------------------------------ set MB-controllers
@@ -176,8 +188,10 @@ function [P] = show(Model,Q,col)
         col = 'b';
     end
     
-    plt1 = plot3(P(:,1),P(:,2),P(:,3),'-','linewidth',4,'Color',col); hold on;
-    plt2 = plot3(P(Np,1),P(Np,2),P(Np,3),'.','markersize',35,'Color',col);
+    plt1 = plot3(P(:,1),P(:,2),P(:,3),'-','linewidth',...
+        Model.Linewidth,'Color',col); hold on;
+    plt2 = plot3(P(Np,1),P(Np,2),P(Np,3),'.',...
+        'markersize',Model.Markersize,'Color',col);
     
     plt = {plt1,plt2};
 end
@@ -422,11 +436,10 @@ disp('----------------------------------');
         Model.R  = R_;
         Model.G  = G_;
         Model.t  = t;
+        
         % pre-compute Minverse
         Minv = M_\eye(3*n);
-        
-        % compute dynamic residual
-        
+
         % compute hessian
         J = buildHessian(Model);
     end
@@ -470,14 +483,7 @@ end
 Ai = adjointSE3inv(Phi_,p_);
 J  = Ai*J;
 
-l  = cumsum(Model.l0(:).*(ee(:) + 1));
-id = zeros(numel(l),1);
-
-% for ii = 1:numel(l)
-%    [~,id(ii)] = min(abs(l(ii) - ss(:)));
-% end
 id = round(linspace(1,(Model.Sstep*5),Model.Nlink+1));
-%id = [1;id(:)];
 
 end
 %-------------------------------------------------- forwards kinematics ODE
@@ -607,7 +613,7 @@ V  = Jg*dx(:);
 Vw = V(1:3);
 Vs = V(4:6);
 
-a   = adjointse3(Vw,Vs);
+a  = adjointse3(Vw,Vs);
 
 dJ  = A*Jstar*S_;
 dJt = A*a*Jstar*S_;
@@ -627,7 +633,7 @@ Mtt = msl*[Is        , zeros(3,3);
 % compute inertia, coriolis, gravity
 dM = (Jg).'*Mtt*Jg;
 dC = (Jg).'*((Mtt*a - a.'*Mtt)*Jg  + Mtt*Jgt);
-dG = (Jg).'*msl*(Ai*[0;0;0;0;0;9.81]);
+dG = (A*Jg).'*msl*([0;0;0;0;0;9.81]);
 
 % compute grav. potential energy
 dVg = msl*p_.'*[0;0;9.81];

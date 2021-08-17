@@ -39,7 +39,7 @@ for ii = 1:fps(mdl.t,30):length(mdl.t)
 end
 ```
 
-<div align="center"> <img src="./fig/mdl_8_link.gif" width="550"> </div> 
+<div align="center"> <img src="./docs/mdl_8_link.gif" width="550"> </div> 
 
 ### Closed-loop control of 4-link soft manipulator
 ```matlab
@@ -80,7 +80,7 @@ function tau = Controller(mdl,qd)
   tau = mdl.G + mdl.K*(mdl.q) - Kp*(mdl.q - qd) - Kd*(mdl.dq);
 end
 ```
-<div align="center"> <img src="./fig/mdl_4_closedloop.gif" width="550"> </div> 
+<div align="center"> <img src="./docs/mdl_4_closedloop.gif" width="550"> </div> 
 
 ### Comparison between hyper-elastic vs. linear materials
 The nonlinear stifnesses (for both bending and elongation) are given by:
@@ -135,4 +135,4 @@ tau = 0.02*[v;zeros((mdl.Nlink-1)*3,1)];
 end
 ```
 
-<div align="center"> <img src="./fig/hypervslinear.gif" width="550"> </div> 
+<div align="center"> <img src="./docs/hypervslinear.gif" width="550"> </div> 
