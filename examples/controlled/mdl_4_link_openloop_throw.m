@@ -1,11 +1,8 @@
-addpath(genpath('src'));
-%close all; clear; clc;
-hold all;
 %% set number of links
 mdl = Model(4);
 
 %% throwing parameters
-trel = 11.41;
+trel = 7.7;
 flr  = -0.35;
 
 %% settings
@@ -62,7 +59,7 @@ Q  = mdl.q;
 jj = 1;
 
 % animation for-loop
-for ii = 1:fps(mdl.t,120):length(mdl.t)
+for ii = 1:fps(mdl.t,225):length(mdl.t)
     
     figure(103); cla;
     % plot soft robot
