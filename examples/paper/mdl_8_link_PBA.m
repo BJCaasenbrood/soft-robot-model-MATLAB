@@ -8,13 +8,10 @@ mdl = mdl.set('Tsim',30,'Adaptive',true);
 mdl = mdl.setElements(40);
 mdl = mdl.setFrequency(125);
 mdl = mdl.setLength(0.025);
+mdl.m0(end) = 0.2;
+mdl.r0(end) = 0.005;
 
 %% offset parameters
-mdl.Pihat(1) = mdl.Pi(1)*0.75;
-mdl.Pihat(2) = mdl.Pi(2)*0.75;
-mdl.Pihat(4) = mdl.Pi(4)*0.55;
-mdl.Pihat(5) = mdl.Pi(5)*0.55;
-
 mdl.tau       = @(mdl) Controller(mdl);
 mdl.updatelaw = @(mdl) UpdateLaw(mdl,1);
 
@@ -93,14 +90,14 @@ end
 %% model-based controller
 function tau = Controller(mdl)
 t = mdl.t;
-P = mdl.Phi;
-p = mdl.p;
-
-Ad = adjointSE3inv(P,p);
-
-J     = mdl.J;
-f     = [0;0;0;0;0;-25];
-delta = J.'*(Ad*f);
+% P = mdl.Phi;
+% p = mdl.p;
+% 
+% Ad = adjointSE3inv(P,p);
+% 
+% J     = mdl.J;
+% f     = [0;0;0;0;0;-25];
+% delta = J.'*(Ad*f);
 
 Kp_ = diag([5, 0.001, 0.001]);
 Kd_ = diag([1, 0.001, 0.001]);
@@ -123,8 +120,7 @@ er   = de + Lambda*e;
 dqr  = dqd  - Lambda*e;
 ddqr = ddqd - Lambda*de;
 
-tau  = mdl.M*ddqr + mdl.C*dqr + mdl.G + mdl.K*mdl.q - Kp*e - Kd*er ...
-+ delta;
+tau  = mdl.M*ddqr + mdl.C*dqr + mdl.G + mdl.K*mdl.q - Kp*e - Kd*er;
 end
 
 function [dp,e] = UpdateLaw(mdl,alpha)

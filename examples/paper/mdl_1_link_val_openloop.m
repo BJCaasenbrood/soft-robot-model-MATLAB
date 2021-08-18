@@ -4,15 +4,6 @@ close all; clear; clc;
 %% experimental load data
 load('openloop_data_p123.mat');
 
-nf = 50;
-
-U_ = [smooth(U_(:,1),nf),...
-      smooth(U_(:,2),nf),...
-      smooth(U_(:,3),nf)];
-
-kx_ = smooth(kx_,50);
-ky_ = smooth(ky_,50);
-
 %% set number of links
 mdl = Model(1,'Tsim',40,'Creep',true);
 
@@ -50,41 +41,41 @@ figure(101); clf;
 subplot(3,4,1:4); 
 
 plot(mdl.t,U_(:,1)/1e3,'-',...
-    'Color',greycolors(2),'linewidth',2.5);  hold on; 
+    'Color',col(1),'linewidth',1.5);  hold on; 
 plot(mdl.t,U_(:,2)/1e3,'-',...
-    'Color',greycolors(3),'linewidth',2.5);
+    'Color',col(2),'linewidth',1.5);
 plot(mdl.t,U_(:,3)/1e3,'-',...
-    'Color',greycolors(4),'linewidth',2.5);
-legend('$u_1$','$u_2$','$u_3$','Simulation','Location','NorthWest',...
-    'Orientation','horizontal','interpreter','latex','fontsize',19);
-set(gca,'linewidth',1.5);
+    'Color',col(3),'linewidth',1.5);
+legend({'$u_1$','$u_2$','$u_3$'},'Location','NorthWest',...
+    'Orientation','horizontal','interpreter','latex','fontsize',10);
+set(gca,'linewidth',1);
 
 axis([0 40 5 40]);
-xlabel('time (s)','interpreter','latex','fontsize',19);
-ylabel('$u$ (kPa)','interpreter','latex','fontsize',19);
-grid on; set(gca,'linewidth',1.5);
+xlabel('time (s)','interpreter','latex','fontsize',12);
+ylabel('$u$ (kPa)','interpreter','latex','fontsize',12);
+grid on; set(gca,'linewidth',1);
 
 subplot(3,4,[5,6,9,10]); 
-plot(kx_-0.36,ky_ -0.1,':','Color',greycolors(2),'linewidth',2.5); 
+plot(kx_-0.36,ky_ -0.1,'-','Color',col(4),'linewidth',1.5); 
 
 hold on;
 V1 = rotx(-0.5)*[0*kx1.';ky1.';-kx1.'];
-plot(V1(2,:),V1(3,:),'Color',greycolors(4),'linewidth',2.5); 
+plot(V1(2,:),V1(3,:),'Color',col(1),'linewidth',1.5); 
 axis([-9.5 9.5 -8 12]); axis square; grid on; set(gca,'linewidth',1.5);
-xlabel('$\kappa_x$ (m$^{-1}$)','interpreter','latex','fontsize',19);
-ylabel('$\kappa_y$ (m$^{-1}$)','interpreter','latex','fontsize',19);
-legend('Experiment','FEM-driven model','interpreter','latex','fontsize',17);
-set(gca,'linewidth',1.5);
+xlabel('$\kappa_x$ (m$^{-1}$)','interpreter','latex','fontsize',12);
+ylabel('$\kappa_y$ (m$^{-1}$)','interpreter','latex','fontsize',12);
+legend({'Experiment','Hyper-elastic'},'interpreter','latex','fontsize',10);
+set(gca,'linewidth',1);
 
 subplot(3,4,[7,8,11,12]); 
-plot(kx_-0.36,ky_ -0.1,':','Color',greycolors(2),'linewidth',2.5); 
+plot(kx_-0.36,ky_ -0.1,'-','Color',col(4),'linewidth',1.5); 
 
 hold on;
 V2 = rotx(-0.5)*[0*kx2.';ky2.';-kx2.'];
-plot(V2(2,:),V2(3,:),'Color',greycolors(4),'linewidth',2.5); 
-axis([-9.5 9.5 -8 12]); axis square; grid on; set(gca,'linewidth',1.5);
-xlabel('$\kappa_x$ (m$^{-1}$)','interpreter','latex','fontsize',19);
-legend('Experiment','Hookean model','interpreter','latex','fontsize',17);
+plot(V2(2,:),V2(3,:),'Color',col(1),'linewidth',1.5); 
+axis([-9.5 9.5 -8 12]); axis square; grid on; set(gca,'linewidth',1);
+xlabel('$\kappa_x$ (m$^{-1}$)','interpreter','latex','fontsize',12);
+legend({'Experiment','Hookean'},'interpreter','latex','fontsize',10);
 
 %% animate soft robot
 % for ii = 1:fps(mdl.t,12):length(mdl.t)
