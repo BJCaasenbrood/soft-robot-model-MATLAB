@@ -5,8 +5,8 @@ mdl = Model(4);
 
 %% settings
 mdl = mdl.set('Phi0',rotx(pi),'Tsim',15,'MaxItr',10,'Creep',false);
-mdl = mdl.setElements(20);
-mdl = mdl.setFrequency(25);
+mdl = mdl.setElements(40);
+mdl = mdl.setFrequency(50);
 mdl = mdl.setLength(0.045);
 
 mdl = mdl.setControl( @(mdl) Controller(mdl) );
@@ -57,7 +57,7 @@ end
 %% model-based controller
 function tau = Controller(mdl)
 v1  = [0;sin(6.5*mdl.t);0];
-tau = 0.05*[zeros((mdl.Nlink-1)*3,1);v1];
+tau = 0.02*[zeros((mdl.Nlink-1)*3,1);v1];
 end
     
     

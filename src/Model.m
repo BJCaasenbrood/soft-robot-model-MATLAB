@@ -1,4 +1,5 @@
 classdef Model
+    
     properties (Access = public)
         Nlink;
         Sstep, Tstep;
@@ -14,6 +15,7 @@ classdef Model
         Shp;
         tau, tau_;
         updatelaw;
+        Payload;
     end
     
     properties (Access = private)
@@ -45,7 +47,7 @@ function obj = Model(N,varargin)
     obj.ke = [223.4, 174.0,-45.55];              
     obj.kb = [0.42292, 0.39552, -0.21293];   
     obj.kp = 0.75;
-    obj.de = 0.05;                              
+    obj.de = 0.01;                              
     obj.db = 1.05e-5;   
     obj.mue = 0.523;
     obj.mub = 1.53e-2;
@@ -137,6 +139,13 @@ function Model = setLength(Model,a)
 end
 %------------------------------------------------------ set shape-functions
 function Model = setShapeFunction(Model,fnc), Model.Shp = fnc; end
+%------------------------------------------------------ set shape-functions
+function Model = setLoad(Model,m)
+    Model.Payload = m; 
+    % build parameter vector
+    Model = rebuildParameters(Model);
+    Model.Pihat = Model.Pi;
+end
 %------------------------------------------------------ set MB-controllers
 function Model = setControl(Model,fnc)
     Model.tau = fnc; 
@@ -288,6 +297,7 @@ progress('end');
 disp('----------------------------------');
 
 tt = toc;
+disp(['* Number of elem.  = ', num2str(Model.Sstep,3)]);
 disp(['* Computation time = ', num2str(tt,3), ' s']);
 disp(['* Computation freq = ', num2str(round(1/h)), ' Hz']);
 disp(['* Real-time ratio  = ', num2str((Ts(end))/(tt),4), '']);
@@ -328,6 +338,12 @@ disp('----------------------------------');
         
         % evaluate control action
         Model.tau_ = Model.tau(Model);
+        
+        if ~isempty(Model.Payload)
+            f = [0;0;0;0;0;-Model.Payload*9.81];
+            deltaM = Model.J.'*(adjointSE3inv(Phi_,p_)*f);
+            Model.tau_ = Model.tau_ + deltaM;
+        end
         
         % evaluate creep strains
         Delta = Klm*Lm;
@@ -556,14 +572,33 @@ C  = Z2(1:n,n+1:2*n);
 G  = Z2(1:n,2*n+1);
 Vg = Z1(5,4);
 
-p   = Z1(1:3,4);
-Phi = Z1(1:3,1:3);
-B   = Z1(1:6,5:5+n-1);
-J   = adjointSE3inv(Phi,p)*B;
+p    = Z1(1:3,4);
+Phi  = Z1(1:3,1:3);
+B1   = Z1(1:6,5:5+n-1);
+J    = adjointSE3inv(Phi,p)*B1;
 
 Kg1  = kron(eye(ndof),diag([Model.gam(1),Model.gam(3),Model.gam(5)]));
 Kg2  = kron(eye(ndof),diag([Model.gam(2),Model.gam(4),Model.gam(6)]));
 Klm  = kron(eye(ndof),diag([Model.mue,Model.mub,Model.mub]));
+
+if ~isempty(Model.Payload)
+    
+    dMtt = Model.Payload*[zeros(3,3), zeros(3,3); zeros(3,3), eye(3,3)]; 
+    
+    B2 = Z1(1:6,5+n:end);
+    dJ = adjointSE3inv(Phi,p)*B2;
+    dM = J.'*dMtt*J;
+    dC = J.'*dMtt*dJ;
+    
+    M = M + dM;
+    C = C + dC;
+    
+    f = [0;0;0;0;0;-9.81];
+    deltaMY = J.'*(adjointSE3inv(Phi,p)*f);
+    
+    Y = [Y,deltaMY];
+    
+end
 
 end
 %-------------------------------------------------- forwards kinematics ODE
@@ -589,7 +624,7 @@ end
 %---------------------------------------------------- forwards dynamics ODE
 function [dp,dPhi,dJ,dJt,dM,dC,dG,dVg] = LagrangianODE(~,~,x,dx,...
     S_, m0_, l0_, r0_, ...
-    p_,Phi_,J_,Jt_)
+    p_,Phi_,J_,Jt_,deltaL)
 
 % construct geometric vectors
 Jstar = [0,0,-1;0,1,0;0,0,0;0,0,0;0,0,0;1,0,0];
@@ -621,8 +656,9 @@ dJt = A*a*Jstar*S_;
 % build dynamic matrices
 l   = l0_*(U(3));
 msl = m0_/l;
-Ixx = (r0_^2)/(4*l); 
-Iyy = (r0_^2)/(4*l); 
+
+Ixx = (r0_^2)/(4*l) + (1/3)*(deltaL)^2; 
+Iyy = (r0_^2)/(4*l) + (1/3)*(deltaL)^2; 
 Izz = (r0_^2)/(2*l); 
 
 Is  = diag([Ixx,Iyy,Izz]); 
@@ -682,6 +718,7 @@ dJt = A*a*Jstar*S_;
 l   = l0_*(U(3));
 
 msl = m0_/l;
+
 Ixx = (r0_^2)/(4*l); 
 Iyy = (r0_^2)/(4*l); 
 Izz = (r0_^2)/(2*l); 
@@ -715,8 +752,13 @@ dZ2(1:n,2*n+1)   = dG;
 end
 %----------------------------------------- compute nonlinear stiffness mat.
 function Model = rebuildParameters(Model)
+if isempty(Model.Payload)
 Model.Pi = [Model.ke(1),Model.ke(2),Model.ke(3),...
     Model.kb(1),Model.kb(2),Model.kb(3),Model.kp].';
+else
+Model.Pi = [Model.ke(1),Model.ke(2),Model.ke(3),...
+    Model.kb(1),Model.kb(2),Model.kb(3),Model.kp,Model.Payload].';    
+end
 end
 %--------------------------------------- updated Hessian with dyn. residual
 function dr = stateUpdate(Model, H, dR)
@@ -766,14 +808,17 @@ Fax = faxi(phi,Model.Pi(7)*beta);
 KEE = Model.Pi(1) + Model.Pi(2)*(tanh(Model.Pi(3)*eps)^2 - 1);
 KBB = Fax*(Model.Pi(4) + Model.Pi(5)*(tanh(Model.Pi(6)*beta)^2 - 1));
 
-Ktt = (numel(x)/3)*...
+StiffnessCorrection = (0.04)^2/(mean(l))^2;
+%StiffnessCorrection = (numel(x)/3);
+
+Ktt = StiffnessCorrection*...
     diag([KEE,KBB*parL(2)*(1+Q(1)),KBB*parL(2)*(1+Q(1))]);         
 
 Fax = faxi(phi,Model.Pihat(7)*beta);
 KEE_ = Model.Pihat(1) + Model.Pihat(2)*(tanh(Model.Pihat(3)*eps)^2 - 1);
 KBB_ = Fax*(Model.Pihat(4) + Model.Pihat(5)*(tanh(Model.Pihat(6)*beta)^2 - 1));
 
-Ktthat = (numel(x)/3)*...
+Ktthat = StiffnessCorrection*...
     diag([KEE_,KBB_*parL(2)*(1+Q(1)),KBB_*parL(2)*(1+Q(1))]);   
 
 end
@@ -810,7 +855,7 @@ YY6  = [0;0;0];
 YY7  = [0;0;0];
 
 Y = [YY1,YY2,YY3,YY4,YY5,YY6,YY7];
-          
+  
 end
 %------------------------------------- select PCC shapefunction from libary
 function shp = chooseShapeFncfromLibary(~,n)
@@ -821,8 +866,9 @@ function shp = chooseShapeFncfromLibary(~,n)
    elseif n == 5, shp = @(x,l) PieceWiseFunction5(x,l);    
    elseif n == 6, shp = @(x,l) PieceWiseFunction6(x,l);
    elseif n == 7, shp = @(x,l) PieceWiseFunction7(x,l);
-   elseif n == 8, shp = @(x,l) PieceWiseFunction8(x,l);      
-   else, error(['PCC shape function order available until n=8. \n If more links'...
+   elseif n == 8, shp = @(x,l) PieceWiseFunction8(x,l);     
+   elseif n == 9, shp = @(x,l) PieceWiseFunction9(x,l);     
+   else, error(['PCC shape function order available until n=9. \n If more links'...
            ,' are needed, please modify the PieceWiseFunction_.m files under src/pwf']);
    end
 end

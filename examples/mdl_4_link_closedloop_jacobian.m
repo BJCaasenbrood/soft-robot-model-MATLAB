@@ -65,7 +65,7 @@ xd = [0.1;-0.0;-0.1];
 lamb = 0.001;
 PJD = J.'*inv(J*J.' - lamb*eye(3));
 
-e = (p - xd)
+e = (p - xd);
 
 Kp = 0.01;
 Kd = 3e-4*eye(12);
