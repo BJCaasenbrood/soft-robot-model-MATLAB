@@ -6,7 +6,7 @@ load('oscill_data_b17.mat'); x1 = x; y1 = y;
 load('oscill_data_b42.mat'); x2 = x; y2 = y;
 
 %% set number of links
-mdl = Model(1,'Tsim',1.6,'Creep',true);
+mdl = Model(1,'Tsim',.6,'Creep',true);
 
 %% settings
 mdl = mdl.setElements(30);

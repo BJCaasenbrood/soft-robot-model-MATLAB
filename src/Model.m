@@ -419,8 +419,9 @@ ndof = numel(Model.m0);
 
 % compute total length
 n    = numel(x);
-ee   = x(1:3:n);
-ltot = sum(Model.l0(:).*(ee(:) + 1));
+%ee   = x(1:3:n);
+%ltot = sum(Model.l0(:).*(ee(:) + 1));
+ltot = sum(Model.l0(:));
 
 ds   = ltot/Model.Sstep;
 p    = Model.p0;
@@ -434,7 +435,7 @@ Pvec = zeros(Model.Nlink*3,1);
 for ii = 1:length(Model.l0)
     Pvec(3*ii-2) = Model.m0(ii);
     Pvec(3*ii-1) = Model.l0(ii);
-    Pvec(3*ii) = Model.r0(ii);
+    Pvec(3*ii)   = Model.r0(ii);
 end
 
 Z1 = zeros(6,4+2*n);
@@ -445,7 +446,7 @@ Z1(1:3,4)   = p;
 for ii = 1:Model.Sstep
     
     % get lengths and eval PCC shapefunction
-    l  = Model.l0(:).*(x(1:3:numel(x)) + 1);
+    l  = Model.l0(:);%.*(x(1:3:numel(x)) + 1);
     S_ = Model.Shp(s,l);
     
     parvec = S_*Pvec;
