@@ -44,20 +44,23 @@ function obj = Model(N,varargin)
     obj.MaxItr = 3;
     obj.Conv   = 0.01;
     
-    obj.ke = [223.4, 174.0,-45.55];              
-    obj.kb = [0.42292, 0.39552, -0.21293];   
-    obj.kp = 0.75;
-    obj.de = 0.01;                              
-    obj.db = 1.05e-5;   
+    obj.ke  = [223.4, 174.0,-45.55];          % preset elongation stiff.   
+    obj.kb  = [0.42292, 0.39552, -0.21293];            % preset bending stiff.
+    
+    obj.kp  = 0.75;                           % preset asymmetric stiff.
+    obj.de  = 0.01;                           % preset elongation damp. 
+    obj.db  = 1.0e-5;                         % preset bending damp.
+
     obj.mue = 0.523;
     obj.mub = 1.53e-2;
-    obj.gam = [3.21e2, 5.22e-1, 26.356, 0.0018193, 26.356, 0.0018193];
+    obj.gam = [3.21e2, 5.22e-1, 26.356,...    % preset creeping para.
+               0.00018193, 26.356, 0.00018193];
 
     obj.Phi0 = eye(3);
     obj.p0 = zeros(3,1);
-    obj.m0 = ones(N,1)*0.049;
+    obj.m0 = ones(N,1)*0.05;
     obj.l0 = ones(N,1)*0.064;
-    obj.r0 = ones(N,1)*0.0495;
+    obj.r0 = ones(N,1)*0.05;
     
     obj.q0   = zeros(3*N,1);
     obj.dq0  = zeros(3*N,1);
@@ -78,7 +81,7 @@ function obj = Model(N,varargin)
         obj.(varargin{ii}) = varargin{ii+1};
     end
     
-    if ~obj.Creep, obj.gam = obj.gam*0; end
+    if ~obj.Creep, obj.gam = obj.gam*0; obj.lam0 = obj.lam0*0; end
     
     % build parameter vector
     obj = rebuildParameters(obj);
@@ -137,12 +140,23 @@ function Model = setLength(Model,a)
     else, Model.l0 = a(:);
     end
 end
+%------------------------------------------------------ set length of links
+function Model = setRadius(Model,a)
+    if numel(a) == 1, Model.r0 = ones(Model.Nlink,1)*a; 
+    else, Model.r0 = a(:);
+    end
+end
+%------------------------------------------------------ set length of links
+function Model = setDamping(Model,a)
+    if numel(a) == 1, Model.db = a; 
+    else, Model.de = a(1); Model.db = a(2); 
+    end
+end
 %------------------------------------------------------ set shape-functions
 function Model = setShapeFunction(Model,fnc), Model.Shp = fnc; end
 %------------------------------------------------------ set shape-functions
 function Model = setLoad(Model,m)
     Model.Payload = m; 
-    % build parameter vector
     Model = rebuildParameters(Model);
     Model.Pihat = Model.Pi;
 end
@@ -193,7 +207,7 @@ function [P] = show(Model,Q,col)
     
     [P, Np] = computeForwardKinematics(Model,Q);
     
-    if nargin == 2
+    if nargin < 2
         col = 'b';
     end
     
@@ -208,7 +222,7 @@ end
 end
 %--------------------------------------------------------------------------
 methods (Access = private) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%-------------------------------------------- fast-implicit solve functions
+%----------------------------------------- implicit time-integration solver
 function [Ts, X, U, PI, Hm, tt] = simulateSoftRobot(Model,z0)
 
 Ts = Model.t(:);
@@ -224,7 +238,7 @@ X(1,:)  = z0(:).';
 U(1,:)  = zeros(1,nd);
 PI(1,:) = Model.Pihat(:).';
 
-
+% pre-compute the controller jacobians for implicit solver
 if isempty(Model.dTaudq)
     [Khat,Dhat] = computeControlJacobians(Model);
     
@@ -358,112 +372,9 @@ disp('----------------------------------');
     end
     
 end
-%--------------------------------------------------standard solve functions
-function [Ts, X, U, Hm] = simulateSoftRobotODEMATLAB(Model,z0)
-
-Ts = Model.t(:);
-dt = mean(diff(Ts));
-n  = numel(Model.m0);
-
-z  = z0(:); 
-X  = zeros(length(Ts)-1,Model.Nlink*6);
-U  = zeros(length(Ts)-1,Model.Nlink*3);
-Hm = zeros(length(Ts)-1,1);
-
-U(1,:) = zeros(1,Model.Nlink*3);
-
-tic;
-disp('----------------------------------');
-fprintf('* Computing SR dynamics... ');
-opts = odeset('RelTol',1e-1,'AbsTol',1e-1,'Jacobian', @(t,x) ODEFUNCJACOBIAN(Model,t,x));
-
-progress('start'); 
-%warning off;
-if strcmp(Model.ODE,'ode23t')
-    [~,X] = ode23t(@(t,x)  ODEFUNC(Model,t,x),Ts,z0,opts);
-elseif strcmp(Model.ODE,'ode45')
-    [~,X] = ode45(@(t,x)  ODEFUNC(Model,t,x),Ts,z0,opts);
-elseif strcmp(Model.ODE,'ode23s')
-    [~,X] = ode23s(@(t,x)  ODEFUNC(Model,t,x),Ts,z0,opts);
-else
-    [~,X] = ode23t(@(t,x)  ODEFUNC(Model,t,x),Ts,z0,opts);
-end
-
-progress(100,100);
-progress('end');
-warning on;
-disp('----------------------------------');
-
-tt = toc;
-disp(['* Computation time = ', num2str(tt,3), ' s']);
-disp(['* Computation freq = ', num2str(round(1/dt)), ' Hz']);
-disp(['* Real-time ratio  = ', num2str((Ts(end))/(tt),4), '']);
-
-disp('----------------------------------');
-
-    function dz = ODEFUNC(Model,t,z)
-        Nr  = Model.Nlink*3;
-        
-        q_  = z(1:Nr);
-        dq_ = z(Nr+1:end);
-        
-        % compute Lagrangian entries
-        [M_,C_,K_,R_,G_,~] = computeLagrangian(Model,q_,dq_);
-        
-        % overwrite dynamics
-        Model.q  = q_;
-        Model.dq = dq_;
-        Model.M  = M_;
-        Model.C  = C_;
-        Model.K  = K_;
-        Model.R  = R_;
-        Model.G  = G_;
-        Model.t  = t;
-            
-        % evaluate control action
-        Tau = Model.tau(Model);
-        
-        % pre-compute Minverse
-        Minv = M_\eye(3*n);
-        
-        dz = [dq_; Minv*(Tau - C_*dq_ - K_*q_ - R_*dq_ - G_)];
-        
-        % update progress bar
-        inc = round(100*(t/Model.Tsim)-1);
-        progress(inc,100);
-    end
-    
-    function J = ODEFUNCJACOBIAN(Model,t,z)
-        
-        Nr  = Model.Nlink*3;
-        
-        q_  = z(1:Nr);
-        dq_ = z(Nr+1:end);
-        
-        % compute Lagrangian entries
-        [M_,C_,K_,R_,G_,~] = computeLagrangian(Model,q_,dq_);
-        
-        % overwrite dynamics
-        Model.q  = q_;
-        Model.dq = dq_;
-        Model.M  = M_;
-        Model.C  = C_;
-        Model.K  = K_;
-        Model.R  = R_;
-        Model.G  = G_;
-        Model.t  = t;
-        
-        % pre-compute Minverse
-        Minv = M_\eye(3*n);
-
-        % compute hessian
-        J = buildHessian(Model);
-    end
-
-end
 %--------------------------------------- forwards integration of kinematics
 function [pp, id, J] = computeForwardKinematics(Model,x)
-
+    
 % compute total length
 ee   = x(1:3:numel(x));
 ltot = sum(Model.l0(:).*(ee(:) + 1));
@@ -485,10 +396,10 @@ for ii = 1:(Model.Sstep*5)
    [K2p,K2Phi,K2J] = ForwardKinematicODE(Model, s + (2/3)*ds,...
                         x, Phi_ + (2/3)*ds*K1Phi, p_ + (2/3)*ds*K1p);
     
-   s    = s + ds; 
-   p_   = p_ + 0.25*ds*(K1p + 3*K2p);
+   s    = s    + ds; 
+   p_   = p_   + 0.25*ds*(K1p + 3*K2p);
    Phi_ = Phi_ + 0.25*ds*(K1Phi + 3*K2Phi);
-   J    = J + 0.25*ds*(K1J + 3*K2J);
+   J    = J    + 0.25*ds*(K1J + 3*K2J);
    
    ss = [ss; s];
    pp = [pp; p_(:).'];
@@ -502,7 +413,7 @@ J  = Ai*J;
 id = round(linspace(1,(Model.Sstep*5),Model.Nlink+1));
 
 end
-%-------------------------------------------------- forwards kinematics ODE
+%---------------------------------------------- compute Lagrangian entities 
 function [M,C,K,Khat,R,G,p,Phi,J,Vg,Kg1,Kg2,Klm,Y] = computeLagrangian(Model,x,dx)
 ndof = numel(Model.m0);
 
@@ -572,10 +483,10 @@ C  = Z2(1:n,n+1:2*n);
 G  = Z2(1:n,2*n+1);
 Vg = Z1(5,4);
 
-p    = Z1(1:3,4);
-Phi  = Z1(1:3,1:3);
-B1   = Z1(1:6,5:5+n-1);
-J    = adjointSE3inv(Phi,p)*B1;
+p   = Z1(1:3,4);
+Phi = Z1(1:3,1:3);
+B1  = Z1(1:6,5:5+n-1);
+J   = adjointSE3inv(Phi,p)*B1;
 
 Kg1  = kron(eye(ndof),diag([Model.gam(1),Model.gam(3),Model.gam(5)]));
 Kg2  = kron(eye(ndof),diag([Model.gam(2),Model.gam(4),Model.gam(6)]));
@@ -621,61 +532,7 @@ A    = adjointSE3(Phi_,p_);
 dJ   = A*Jstar*Model.Shp(s,l);
 
 end
-%---------------------------------------------------- forwards dynamics ODE
-function [dp,dPhi,dJ,dJt,dM,dC,dG,dVg] = LagrangianODE(~,~,x,dx,...
-    S_, m0_, l0_, r0_, ...
-    p_,Phi_,J_,Jt_,deltaL)
-
-% construct geometric vectors
-Jstar = [0,0,-1;0,1,0;0,0,0;0,0,0;0,0,0;1,0,0];
-XI    = Jstar*S_*x(:);
-
-Gamma = XI(1:3);
-U     = XI(4:6) + [0;0;1];
-
-% build forward kin - position
-dp   = Phi_*U;
-dPhi = Phi_*skew(Gamma);
-
-A  = adjointSE3(Phi_,p_);
-Ai = adjointSE3inv(Phi_,p_);
-
-% build jacobian
-Jg  = Ai*J_;
-Jgt = Ai*Jt_;
-
-V  = Jg*dx(:);
-Vw = V(1:3);
-Vs = V(4:6);
-
-a  = adjointse3(Vw,Vs);
-
-dJ  = A*Jstar*S_;
-dJt = A*a*Jstar*S_;
-
-% build dynamic matrices
-l   = l0_*(U(3));
-msl = m0_/l;
-
-Ixx = (r0_^2)/(4*l) + (1/3)*(deltaL)^2; 
-Iyy = (r0_^2)/(4*l) + (1/3)*(deltaL)^2; 
-Izz = (r0_^2)/(2*l); 
-
-Is  = diag([Ixx,Iyy,Izz]); 
-
-Mtt = msl*[Is        , zeros(3,3);
-           zeros(3,3), eye(3,3)]; 
-   
-% compute inertia, coriolis, gravity
-dM = (Jg).'*Mtt*Jg;
-dC = (Jg).'*((Mtt*a - a.'*Mtt)*Jg  + Mtt*Jgt);
-dG = (A*Jg).'*msl*([0;0;0;0;0;9.81]);
-
-% compute grav. potential energy
-dVg = msl*p_.'*[0;0;9.81];
-
-end
-%---------------------------------------------------- forwards dynamics ODE
+%---------------------------- Lagrangian Matrix-Differential Equation (MDE)
 function [dZ1,dZ2] = LagrangianODEX(~,~,x,dx,S_,par_,Z1)
 n     = numel(x);
 m0_   = par_(1);
@@ -801,25 +658,26 @@ eps  = parL(2)*Q(1);
 beta = parL(2)*(sqrt(Q(2)^2 + Q(3)^2));
 phi  = atan2(Q(3),Q(2));
 
-w = 1/(2*pi/6);
+w    = 1/(2*pi/6);
 faxi = @(x,a)-(0.5*cos(w*pi*(x) + pi/2)+0.5)*a+(1+a);
 
 Fax = faxi(phi,Model.Pi(7)*beta);
 KEE = Model.Pi(1) + Model.Pi(2)*(tanh(Model.Pi(3)*eps)^2 - 1);
 KBB = Fax*(Model.Pi(4) + Model.Pi(5)*(tanh(Model.Pi(6)*beta)^2 - 1));
 
-StiffnessCorrection = (0.04)^2/(mean(l))^2;
-%StiffnessCorrection = (numel(x)/3);
+%StiffnessCorrection = (0.04)^2/(mean(l))^2;
+StiffnessCorrection = (numel(x)/3);
 
 Ktt = StiffnessCorrection*...
-    diag([KEE,KBB*parL(2)*(1+Q(1)),KBB*parL(2)*(1+Q(1))]);         
+    diag([KEE,KBB*parL(2),KBB*parL(2)]);       
+    %diag([KEE,KBB*parL(2)*(1+Q(1)),KBB*parL(2)*(1+Q(1))]);       
 
 Fax = faxi(phi,Model.Pihat(7)*beta);
 KEE_ = Model.Pihat(1) + Model.Pihat(2)*(tanh(Model.Pihat(3)*eps)^2 - 1);
 KBB_ = Fax*(Model.Pihat(4) + Model.Pihat(5)*(tanh(Model.Pihat(6)*beta)^2 - 1));
 
 Ktthat = StiffnessCorrection*...
-    diag([KEE_,KBB_*parL(2)*(1+Q(1)),KBB_*parL(2)*(1+Q(1))]);   
+    diag([KEE_,KBB_*parL(2),KBB_*parL(2)]);   
 
 end
 %------------------------------------------------ compute Regressor matrix

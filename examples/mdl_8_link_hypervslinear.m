@@ -9,8 +9,8 @@ mdl = mdl.setFrequency(60);
 mdl = mdl.setLength(0.04);
 
 %% simulate with hyper-elastic material
-mdl     = mdl.set('ke',[223.435, 174.051, -45.5521]);
-mdl     = mdl.set('kb',[0.42292, 0.39552, -0.21293]);
+mdl     = mdl.set('ke',[225, 175, -45]);
+mdl     = mdl.set('kb',[0.422, 0.395, -0.21]);
 mdl.tau = @(mdl) Controller(mdl);
 mdl     = mdl.simulate;
 Q1      = mdl.q;

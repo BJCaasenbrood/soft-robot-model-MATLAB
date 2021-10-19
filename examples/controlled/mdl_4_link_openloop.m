@@ -4,10 +4,11 @@ close all; clear; clc;
 mdl = Model(4);
 
 %% settings
-mdl = mdl.set('Phi0',rotx(pi),'Tsim',15,'MaxItr',10,'Creep',false);
+mdl = mdl.set('Phi0',rotx(pi),'Tsim',15,'MaxItr',10);
 mdl = mdl.setElements(40);
-mdl = mdl.setFrequency(50);
-mdl = mdl.setLength(0.045);
+mdl = mdl.setFrequency(30);
+mdl = mdl.setMass(0.045);
+mdl = mdl.setDamping(1e-5);
 
 mdl = mdl.setControl( @(mdl) Controller(mdl) );
 

@@ -1,72 +1,36 @@
-addpath(genpath('src'));
-close all; clear; clc;
-%% set number of links
+%% generate model class
 mdl = Model(4);
 
 %% settings
-mdl = mdl.set('Phi0',rotx(pi));
+mdl = mdl.set('Phi0',rotx(pi),'Tsim',15);
 mdl = mdl.setElements(60);
-mdl = mdl.setFrequency(60);
+mdl = mdl.setFrequency(30);
 mdl = mdl.setLength(0.065);
 
-mdl = mdl.setControl( @(mdl) Controller(mdl) );
+%% set model-based controller (computed torque control, see below)
+qd  = [0;20;10;0;-20;0;0;0;30;0;-40;0]; 
+mdl = mdl.setControl( @(mdl) Controller(mdl,qd) );
 
-%% simulate with initial conditions
+%% simulate with zero initial conditions
 mdl = mdl.simulate;
 
-%% post-processing data
-l0 = mdl.get('l0');
-l  = mean(l0)*(1+mdl.q(:,1:3:3*mdl.Nlink));
-kx = mdl.q(:,2:3:3*mdl.Nlink);
-ky = mdl.q(:,3:3:3*mdl.Nlink);
-dkx = mdl.dq(:,2:3:3*mdl.Nlink);
-dky = mdl.dq(:,2:3:3*mdl.Nlink);
-
-f = figure(101); f.Name = 'Bishop parameters';
-subplot(3,1,1); plot(mdl.t,l,'linewidth',2); 
-ylabel('$l(t)$','interpreter','latex','fontsize',20);
-subplot(3,1,2); plot(mdl.t,kx,'linewidth',2); 
-ylabel('$\kappa_x(t)$','interpreter','latex','fontsize',20);
-subplot(3,1,3); plot(mdl.t,ky,'linewidth',2); 
-ylabel('$\kappa_y(t)$','interpreter','latex','fontsize',20);
-xlabel('time $t$ [s]','interpreter','latex','fontsize',20);
-
-%% play animation soft robot
-f = figure(103);
-Q = mdl.q;
-Qd = [0;20;10;0;-20;0;0;0;30;0;-40;0].' + zeros(length(mdl.t),12);
+%% show simulation
+figure(102);
+Qd = [0;20;10;0;-20;0;0;0;30;0;-40;0].';
 
 for ii = 1:fps(mdl.t,12):length(mdl.t)
-    figure(103); cla;
-    mdl.show(Q(ii,:),col(1));
-    mdl.show(Qd(ii,:),col(2));
+    figure(102); cla;
+    mdl.show(mdl.q(ii,:),col(1));
+    mdl.show(Qd,col(2));
+    
     groundplane(0.02);
     axis equal; axis(0.2*[-0.75 0.75 -0.75 0.75 -1.5 0.1]);
-    f.Name = [' Time =',num2str(mdl.t(ii),3)];
-        
-    title('\color{blue} Soft manipulator (N=4) \color{black} vs. \color{red} Desired',...
-        'interpreter','tex','fontsize',12);
-    
-    drawnow(); grid on; box on; 
-    view(30,30); set(gcf,'color','w');
-    set(gca,'linewidth',1.5);
-    
-    if ii == 1, gif('mdl_4_closedloop.gif','frame',gcf,'nodither');
-    else, gif;
-    end
+    view(30,30); grid on; box on;  drawnow(); 
 end
 
 %% model-based controller
-function tau = Controller(mdl)
-J = mdl.J;
-% qd1 = [0;20;10];
-% qd2 = [0;-20;0];
-% qd3 = [0;0;30];
-% qd4 = [0;-40;0];
-xd = [0.1;0.1;0.1];
-Kp = 1e-4*eye(3);
-%KKd = 3e-5*eye(12);
-tau = mdl.G + mdl.K*(mdl.q) - J.'*(Kp*e) - KKd*(mdl.dq);
+function tau = Controller(mdl,qd)
+  Kp = 1e-4*eye(12);
+  Kd = 5e-5*eye(12);
+  tau = mdl.G + mdl.K*(mdl.q) - Kp*(mdl.q - qd) - Kd*(mdl.dq);
 end
-    
-    

@@ -1,15 +1,21 @@
 addpath(genpath('src'));
 close all; clear; clc;
-%% set number of links
+%% settings
 mdl = Model(1);
 
 %% settings
-mdl = mdl.set('Tsim',50,'Adaptive',true);
+mdl = mdl.set('Tsim',70,'Adaptive',true);
 mdl = mdl.setElements(5);
 mdl = mdl.setFrequency(60);
-mdl = mdl.setLength(0.065);
-mdl = mdl.setLoad(0.175);
 
+mdl = mdl.setMass(0.0105);
+mdl = mdl.setRadius(0.0123);
+mdl = mdl.setDamping([0.01,2.3e-7]);
+
+mdl = mdl.set('ke',[223.4, 174.0,-45.55]);
+mdl = mdl.set('kb',[0.0130, 0.0124, -0.2129]);
+
+mdl = mdl.setLoad(0.05);
 %% offset parameters
 mdl.Pihat(1) = mdl.Pi(1)*0.75;
 mdl.Pihat(2) = mdl.Pi(2)*0.75;
@@ -73,11 +79,11 @@ plot(t,kb./kb_,'Color',gcol(3),'linewidth',2.5);
 plot(t,mdl.Pi(8)./mdl.Pihat(:,8),'Color',gcol(4),'linewidth',2.5,'linestyle','-.'); 
 ylabel('Evolution of stiffness estimate','interpreter','latex','fontsize',19); 
 xlabel('time (s)','interpreter','latex','fontsize',19);
-set(gca,'linewidth',1.5); axis([0 mdl.t(end) 0.75 2]); grid on;
+set(gca,'linewidth',1.5); axis([0 mdl.t(end) 0.75 3]); grid on;
 legend('$\frac{k_e(q)}{\hat{k}_e(q,\Pi)}$ \vspace{15mm}',...
     '$\frac{k_b(q)}{\hat{k}_b(q,\Pi)}$','$\frac{m_\delta}{\hat{m}_\delta(\Pi)}$','interpreter','latex',...
     'fontsize',27,'orientation','horizontal');
-% error('_');
+error('_');
 
 %% recover trajectory end effector
 P = zeros(length(mdl.t),3);
@@ -131,9 +137,9 @@ end
 function [dp,e] = UpdateLaw(mdl,alpha)
 t  = mdl.t;
 Y  = mdl.Y;
-Ge = 10e3;
-Gb = 6e-5;
-Gm = 0.025;
+Ge = 4e3;
+Gb = 5e-6;
+Gm = 0.05;
 
 Gamma  = alpha*diag([Ge,Ge,0,Gb,Gb,0,0,Gm]);
 qd     = [0.01*sin(t) + 0.01; 30*sin(t); 30*cos(t)];

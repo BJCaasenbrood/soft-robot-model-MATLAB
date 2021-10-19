@@ -6,9 +6,7 @@ mdl = Model(4,'Tsim',15);
 %% settings
 mdl = mdl.setElements(40);
 mdl = mdl.setFrequency(30);
-mdl = mdl.setLength(0.04);
-mdl = mdl.setMass(0.02);
-mdl = mdl.setLoad(0.05);
+mdl = mdl.setLoad(0.02);
 
 %% simulate with hyper-elastic material
 mdl.q0(2:3:end) = 1;
